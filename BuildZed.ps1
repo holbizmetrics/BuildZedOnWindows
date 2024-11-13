@@ -15,7 +15,7 @@
 .NOTES
     Author: [Your Name]
     Date: [Date]
-    Version: 1.3
+    Version: 1.4
 #>
 
 function Test-Command($command) {
@@ -79,6 +79,10 @@ function Check-VisualStudio {
     $vsPaths = Get-VisualStudioPath
     if ($vsPaths.Count -eq 0) {
         Write-Error "Visual Studio is not installed. Please install Visual Studio with the C++ build tools."
+        Write-Host "Ensure you have the following components installed:"
+        Write-Host "- MSVC v143 - VS 2022 C++ x64/x86 build tools"
+        Write-Host "- MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs"
+        Write-Host "- Windows 11 SDK (if applicable)"
         return  # Use return instead of exit
     }
 
@@ -91,6 +95,8 @@ function Check-VisualStudio {
         Write-Host "You can do this by running the Visual Studio Installer and ensuring the following components are selected:"
         Write-Host "- MSVC v143 - VS 2022 C++ x64/x86 build tools"
         Write-Host "- Spectre mitigated libraries"
+        Write-Host "- Windows 11 SDK (if applicable)"
+        Write-Host "Also, check your Visual Studio Installer locale settings."
         return  # Use return instead of exit
     }
 }
