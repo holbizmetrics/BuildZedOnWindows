@@ -15,7 +15,7 @@
 .NOTES
     Author: [Your Name]
     Date: [Date]
-    Version: 1.2
+    Version: 1.3
 #>
 
 function Test-Command($command) {
@@ -40,28 +40,58 @@ $env:CARGO_HTTP_CHECK_REVOKE = "false"
 $configPath = ".\config.json"
 if (-not (Test-Path $configPath)) {
     Write-Error "Configuration file not found: $configPath"
-    exit 1
+    return  # Use return instead of exit
 }
 
 $config = Get-Content $configPath | ConvertFrom-Json
 $projectPath = $config.projectPath
 
+# Function to detect Visual Studio installation
+function Get-VisualStudioPath {
+    $vsPaths = @()
+    $vsRegistryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\VisualStudio\SxS\VS7",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\SxS\VS7"
+    )
+
+    foreach ($path in $vsRegistryPaths) {
+        if (Test-Path $path) {
+            $versions = Get-ItemProperty $path
+            foreach ($version in $versions.PSObject.Properties) {
+                if ($version.Name -match '^\d{4}$') {  # Match year versions like 2019, 2022
+                    $vsPaths += $version.Value + "\Common7\IDE\devenv.exe"
+                }
+            }
+        }
+    }
+
+    # Check for Preview version
+    $previewPath = "C:\Program Files\Microsoft Visual Studio\2022\Preview\Common7\IDE\devenv.exe"
+    if (Test-Path $previewPath) {
+        $vsPaths += $previewPath
+    }
+
+    return $vsPaths
+}
+
 # Check if Visual Studio is installed and has the necessary components
 function Check-VisualStudio {
-    $vsInstalled = Test-Command "devenv"
-    if (-not $vsInstalled) {
+    $vsPaths = Get-VisualStudioPath
+    if ($vsPaths.Count -eq 0) {
         Write-Error "Visual Studio is not installed. Please install Visual Studio with the C++ build tools."
-        exit 1
+        return  # Use return instead of exit
     }
 
     # Check for Spectre-mitigated libraries
-    $spectreLibsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build"
-    if (-not (Test-Path $spectreLibsPath)) {
+    $spectreLibsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build"
+    $previewSpectreLibsPath = "C:\Program Files (x86)\Microsoft Visual Studio\2022\Preview\VC\Auxiliary\Build"
+
+    if (-not (Test-Path $spectreLibsPath) -and -not (Test-Path $previewSpectreLibsPath)) {
         Write-Error "Spectre-mitigated libraries are not found. Please modify your Visual Studio installation to include them."
         Write-Host "You can do this by running the Visual Studio Installer and ensuring the following components are selected:"
-        Write-Host "- MSVC v142 - VS 2019 C++ x64/x86 build tools"
+        Write-Host "- MSVC v143 - VS 2022 C++ x64/x86 build tools"
         Write-Host "- Spectre mitigated libraries"
-        exit 1
+        return  # Use return instead of exit
     }
 }
 
@@ -83,7 +113,7 @@ if (-not (Test-Command cmake)) {
             Remove-Item $cmakeInstaller -ErrorAction SilentlyContinue
         } catch {
             Write-Error "Failed to download or install CMake. Please install it manually."
-            exit 1
+            return  # Use return instead of exit
         }
     }
 
@@ -96,7 +126,7 @@ if (Test-Command cmake) {
     Write-Host "CMake is installed. Version: $(cmake --version)"
 } else {
     Write-Error "CMake installation failed. Please install it manually."
-    exit 1
+    return  # Use return instead of exit
 }
 
 # Check Visual Studio installation and components
